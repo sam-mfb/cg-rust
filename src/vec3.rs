@@ -1,11 +1,13 @@
-pub struct Vec3<T> {
+use num_traits::{Float, NumCast, ToPrimitive};
+
+pub struct Vec3<T: Float> {
     pub x: T,
     pub y: T,
 
     pub z: T,
 }
 
-impl<T: Default> Vec3<T> {
+impl<T: Float + Default> Vec3<T> {
     pub fn new() -> Self {
         Vec3 {
             x: T::default(),
@@ -13,21 +15,49 @@ impl<T: Default> Vec3<T> {
             z: T::default(),
         }
     }
-}
 
-impl<T: Copy> From<T> for Vec3<T> {
-    fn from(val: T) -> Self {
+    fn splat<U: ToPrimitive + Copy>(val: U) -> Self {
         Vec3 {
-            x: val,
-            y: val,
-            z: val,
+            x: NumCast::from(val).unwrap(),
+            y: NumCast::from(val).unwrap(),
+            z: NumCast::from(val).unwrap(),
+        }
+    }
+
+    pub fn length(&self) -> T {
+        (self.x * self.x + self.y * self.y + self.z * self.z).sqrt()
+    }
+
+    pub fn dot(&self, other: &Vec3<T>) -> T {
+        self.x * other.x + self.y * other.y + self.z * other.z
+    }
+
+    pub fn normalize(&self) -> Vec3<T> {
+        let len_sq = self.dot(self);
+        if len_sq > T::zero() {
+            let inv = T::one() / len_sq.sqrt();
+            Vec3 {
+                x: self.x * inv,
+                y: self.y * inv,
+                z: self.z * inv,
+            }
+        } else {
+            Vec3 {
+                x: self.x,
+                y: self.y,
+                z: self.z,
+            }
         }
     }
 }
 
-impl<T> From<(T, T, T)> for Vec3<T> {
-    fn from((x, y, z): (T, T, T)) -> Self {
-        Vec3 { x, y, z }
+impl<T: Float, U: ToPrimitive> From<(U, U, U)> for Vec3<T> {
+    fn from((x, y, z): (U, U, U)) -> Self {
+        Vec3 {
+            x: NumCast::from(x).unwrap(),
+            y: NumCast::from(y).unwrap(),
+            z: NumCast::from(z).unwrap(),
+        }
     }
 }
 
@@ -45,17 +75,118 @@ mod tests {
 
     #[test]
     fn create_broadcast_vec() {
-        let vec3: Vec3<u16> = Vec3::from(11);
-        assert_eq!(vec3.x, 11);
-        assert_eq!(vec3.y, 11);
-        assert_eq!(vec3.z, 11);
+        let vec3: Vec3<f64> = Vec3::splat(11);
+        assert_eq!(vec3.x, 11.0);
+        assert_eq!(vec3.y, 11.0);
+        assert_eq!(vec3.z, 11.0);
     }
 
     #[test]
     fn create_full_vec() {
-        let vec3: Vec3<u16> = Vec3::from((1, 2, 3));
-        assert_eq!(vec3.x, 1);
-        assert_eq!(vec3.y, 2);
-        assert_eq!(vec3.z, 3);
+        let vec3: Vec3<f32> = Vec3::from((1, 2, 3));
+        assert_eq!(vec3.x, 1.0);
+        assert_eq!(vec3.y, 2.0);
+        assert_eq!(vec3.z, 3.0);
+    }
+
+    #[test]
+    fn calculate_length() {
+        let vec3: Vec3<f32> = (3, 4, 5).into();
+        assert_eq!(vec3.length(), (3.0 * 3.0 + 4.0 * 4.0 + 5.0 * 5.0).sqrt())
+    }
+
+    #[test]
+    fn calculate_dot_prod_perpendicular() {
+        let vec3_one: Vec3<f32> = (0, 0, 1).into();
+        let vec3_two: Vec3<f32> = (0, 2, 0).into();
+        let prod = vec3_one.dot(&vec3_two);
+        assert_eq!(prod, 0.0)
+    }
+
+    #[test]
+    fn length_of_unit_vectors() {
+        let unit_x: Vec3<f32> = (1.0, 0.0, 0.0).into();
+        let unit_y: Vec3<f32> = (0.0, 1.0, 0.0).into();
+        let unit_z: Vec3<f32> = (0.0, 0.0, 1.0).into();
+
+        assert_eq!(unit_x.length(), 1.0);
+        assert_eq!(unit_y.length(), 1.0);
+        assert_eq!(unit_z.length(), 1.0);
+    }
+
+    #[test]
+    fn length_345_triangle() {
+        let vec: Vec3<f32> = (3.0, 4.0, 0.0).into();
+        assert_eq!(vec.length(), 5.0);
+    }
+
+    #[test]
+    fn length_known_3d() {
+        let vec: Vec3<f32> = (2.0, 3.0, 6.0).into();
+        assert_eq!(vec.length(), 7.0);
+    }
+
+    #[test]
+    fn dot_parallel_vectors() {
+        let a: Vec3<f32> = (1.0, 0.0, 0.0).into();
+        let b: Vec3<f32> = (1.0, 0.0, 0.0).into();
+        assert_eq!(a.dot(&b), 1.0);
+    }
+
+    #[test]
+    fn dot_opposite_vectors() {
+        let a: Vec3<f32> = (1.0, 0.0, 0.0).into();
+        let b: Vec3<f32> = (-1.0, 0.0, 0.0).into();
+        assert_eq!(a.dot(&b), -1.0);
+    }
+
+    #[test]
+    fn dot_known_values() {
+        let a: Vec3<f32> = (1.0, 2.0, 3.0).into();
+        let b: Vec3<f32> = (4.0, 5.0, 6.0).into();
+        assert_eq!(a.dot(&b), 32.0);
+    }
+
+    #[test]
+    fn normalize_creates_unit_vector() {
+        let vec: Vec3<f32> = (3.0, 4.0, 0.0).into();
+        let normalized = vec.normalize();
+        assert_eq!(normalized.length(), 1.0);
+    }
+
+    #[test]
+    fn normalize_preserves_direction() {
+        let vec: Vec3<f32> = (3.0, 4.0, 0.0).into();
+        let normalized = vec.normalize();
+        // Normalized vector should be (0.6, 0.8, 0.0)
+        // since 3/5 = 0.6 and 4/5 = 0.8
+        assert_eq!(normalized.x, 0.6);
+        assert_eq!(normalized.y, 0.8);
+        assert_eq!(normalized.z, 0.0);
+    }
+
+    #[test]
+    fn normalize_already_normalized() {
+        let unit: Vec3<f32> = (1.0, 0.0, 0.0).into();
+        let normalized = unit.normalize();
+        assert_eq!(normalized.x, 1.0);
+        assert_eq!(normalized.y, 0.0);
+        assert_eq!(normalized.z, 0.0);
+        assert_eq!(normalized.length(), 1.0);
+    }
+
+    #[test]
+    fn normalize_arbitrary_vector() {
+        let vec: Vec3<f32> = (2.0, 3.0, 6.0).into();
+        let normalized = vec.normalize();
+        // Length is 7, so normalized should be (2/7, 3/7, 6/7)
+        let expected_x = 2.0 / 7.0;
+        let expected_y = 3.0 / 7.0;
+        let expected_z = 6.0 / 7.0;
+
+        assert!((normalized.x - expected_x).abs() < 1e-6);
+        assert!((normalized.y - expected_y).abs() < 1e-6);
+        assert!((normalized.z - expected_z).abs() < 1e-6);
+        assert!((normalized.length() - 1.0).abs() < 1e-6);
     }
 }
