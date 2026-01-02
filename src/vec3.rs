@@ -189,4 +189,81 @@ mod tests {
         assert!((normalized.z - expected_z).abs() < 1e-6);
         assert!((normalized.length() - 1.0).abs() < 1e-6);
     }
+
+    #[test]
+    fn cross_product_unit_vectors() {
+        // i × j = k
+        let i: Vec3<f32> = (1.0, 0.0, 0.0).into();
+        let j: Vec3<f32> = (0.0, 1.0, 0.0).into();
+        let k = i.cross(&j);
+        assert_eq!(k.x, 0.0);
+        assert_eq!(k.y, 0.0);
+        assert_eq!(k.z, 1.0);
+
+        // j × k = i
+        let k_vec: Vec3<f32> = (0.0, 0.0, 1.0).into();
+        let result = j.cross(&k_vec);
+        assert_eq!(result.x, 1.0);
+        assert_eq!(result.y, 0.0);
+        assert_eq!(result.z, 0.0);
+
+        // k × i = j
+        let result = k_vec.cross(&i);
+        assert_eq!(result.x, 0.0);
+        assert_eq!(result.y, 1.0);
+        assert_eq!(result.z, 0.0);
+    }
+
+    #[test]
+    fn cross_product_anticommutative() {
+        // a × b = -(b × a)
+        let a: Vec3<f32> = (1.0, 2.0, 3.0).into();
+        let b: Vec3<f32> = (4.0, 5.0, 6.0).into();
+
+        let cross_ab = a.cross(&b);
+        let cross_ba = b.cross(&a);
+
+        assert_eq!(cross_ab.x, -cross_ba.x);
+        assert_eq!(cross_ab.y, -cross_ba.y);
+        assert_eq!(cross_ab.z, -cross_ba.z);
+    }
+
+    #[test]
+    fn cross_product_parallel_vectors() {
+        // Cross product of parallel vectors is zero
+        let a: Vec3<f32> = (1.0, 2.0, 3.0).into();
+        let b: Vec3<f32> = (2.0, 4.0, 6.0).into(); // b = 2*a
+
+        let result = a.cross(&b);
+        assert!((result.x).abs() < 1e-6);
+        assert!((result.y).abs() < 1e-6);
+        assert!((result.z).abs() < 1e-6);
+    }
+
+    #[test]
+    fn cross_product_known_values() {
+        // (1,2,3) × (4,5,6) = (2*6-3*5, 3*4-1*6, 1*5-2*4)
+        //                    = (12-15, 12-6, 5-8)
+        //                    = (-3, 6, -3)
+        let a: Vec3<f32> = (1.0, 2.0, 3.0).into();
+        let b: Vec3<f32> = (4.0, 5.0, 6.0).into();
+
+        let result = a.cross(&b);
+        assert_eq!(result.x, -3.0);
+        assert_eq!(result.y, 6.0);
+        assert_eq!(result.z, -3.0);
+    }
+
+    #[test]
+    fn cross_product_perpendicular() {
+        // Result should be perpendicular to both input vectors
+        let a: Vec3<f32> = (1.0, 2.0, 3.0).into();
+        let b: Vec3<f32> = (4.0, 5.0, 6.0).into();
+
+        let result = a.cross(&b);
+
+        // dot product with perpendicular vectors is 0
+        assert!((result.dot(&a)).abs() < 1e-5);
+        assert!((result.dot(&b)).abs() < 1e-5);
+    }
 }
