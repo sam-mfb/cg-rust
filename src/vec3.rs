@@ -1,4 +1,5 @@
 use num_traits::{Float, NumCast, ToPrimitive};
+use std::ops::{Add, Mul, Sub};
 
 pub struct Vec3<T: Float> {
     pub x: T,
@@ -32,6 +33,14 @@ impl<T: Float + Default> Vec3<T> {
         self.x * other.x + self.y * other.y + self.z * other.z
     }
 
+    pub fn cross(&self, other: &Vec3<T>) -> Vec3<T> {
+        Vec3 {
+            x: self.y * other.z - self.z * other.y,
+            y: self.z * other.x - self.x * other.z,
+            z: self.x * other.y - self.y * other.x,
+        }
+    }
+
     pub fn normalize(&self) -> Vec3<T> {
         let len_sq = self.dot(self);
         if len_sq > T::zero() {
@@ -47,6 +56,39 @@ impl<T: Float + Default> Vec3<T> {
                 y: self.y,
                 z: self.z,
             }
+        }
+    }
+}
+
+impl<T: Float + Default> Add<&Vec3<T>> for &Vec3<T> {
+    type Output = Vec3<T>;
+    fn add(self, other: &Vec3<T>) -> Vec3<T> {
+        Vec3 {
+            x: self.x + other.x,
+            y: self.y + other.y,
+            z: self.z + other.z,
+        }
+    }
+}
+
+impl<T: Float + Default> Sub<&Vec3<T>> for &Vec3<T> {
+    type Output = Vec3<T>;
+    fn sub(self, other: &Vec3<T>) -> Vec3<T> {
+        Vec3 {
+            x: self.x - other.x,
+            y: self.y - other.y,
+            z: self.z - other.z,
+        }
+    }
+}
+
+impl<T: Float + Default> Mul<T> for &Vec3<T> {
+    type Output = Vec3<T>;
+    fn mul(self, other: T) -> Vec3<T> {
+        Vec3 {
+            x: self.x * other,
+            y: self.y * other,
+            z: self.z * other,
         }
     }
 }
@@ -265,5 +307,116 @@ mod tests {
         // dot product with perpendicular vectors is 0
         assert!((result.dot(&a)).abs() < 1e-5);
         assert!((result.dot(&b)).abs() < 1e-5);
+    }
+
+    // ============ Addition Tests ============
+
+    #[test]
+    fn add_two_vectors() {
+        let a: Vec3<f32> = (1.0, 2.0, 3.0).into();
+        let b: Vec3<f32> = (4.0, 5.0, 6.0).into();
+        let result = &a + &b;
+        assert_eq!(result.x, 5.0);
+        assert_eq!(result.y, 7.0);
+        assert_eq!(result.z, 9.0);
+    }
+
+    #[test]
+    fn add_with_zero_vector() {
+        let a: Vec3<f32> = (1.0, 2.0, 3.0).into();
+        let zero: Vec3<f32> = Vec3::new();
+        let result = &a + &zero;
+        assert_eq!(result.x, 1.0);
+        assert_eq!(result.y, 2.0);
+        assert_eq!(result.z, 3.0);
+    }
+
+    #[test]
+    fn add_negative_vectors() {
+        let a: Vec3<f32> = (1.0, 2.0, 3.0).into();
+        let b: Vec3<f32> = (-1.0, -2.0, -3.0).into();
+        let result = &a + &b;
+        assert_eq!(result.x, 0.0);
+        assert_eq!(result.y, 0.0);
+        assert_eq!(result.z, 0.0);
+    }
+
+    // ============ Subtraction Tests ============
+
+    #[test]
+    fn sub_two_vectors() {
+        let a: Vec3<f32> = (5.0, 7.0, 9.0).into();
+        let b: Vec3<f32> = (1.0, 2.0, 3.0).into();
+        let result = &a - &b;
+        assert_eq!(result.x, 4.0);
+        assert_eq!(result.y, 5.0);
+        assert_eq!(result.z, 6.0);
+    }
+
+    #[test]
+    fn sub_same_vector_gives_zero() {
+        let a: Vec3<f32> = (3.0, 4.0, 5.0).into();
+        let b: Vec3<f32> = (3.0, 4.0, 5.0).into();
+        let result = &a - &b;
+        assert_eq!(result.x, 0.0);
+        assert_eq!(result.y, 0.0);
+        assert_eq!(result.z, 0.0);
+    }
+
+    #[test]
+    fn sub_from_zero_vector() {
+        let zero: Vec3<f32> = Vec3::new();
+        let a: Vec3<f32> = (1.0, 2.0, 3.0).into();
+        let result = &zero - &a;
+        assert_eq!(result.x, -1.0);
+        assert_eq!(result.y, -2.0);
+        assert_eq!(result.z, -3.0);
+    }
+
+    // ============ Scalar Multiplication Tests ============
+
+    #[test]
+    fn mul_vector_by_scalar() {
+        let a: Vec3<f32> = (1.0, 2.0, 3.0).into();
+        let result = &a * 2.0;
+        assert_eq!(result.x, 2.0);
+        assert_eq!(result.y, 4.0);
+        assert_eq!(result.z, 6.0);
+    }
+
+    #[test]
+    fn mul_vector_by_zero() {
+        let a: Vec3<f32> = (1.0, 2.0, 3.0).into();
+        let result = &a * 0.0;
+        assert_eq!(result.x, 0.0);
+        assert_eq!(result.y, 0.0);
+        assert_eq!(result.z, 0.0);
+    }
+
+    #[test]
+    fn mul_vector_by_one() {
+        let a: Vec3<f32> = (3.0, 4.0, 5.0).into();
+        let result = &a * 1.0;
+        assert_eq!(result.x, 3.0);
+        assert_eq!(result.y, 4.0);
+        assert_eq!(result.z, 5.0);
+    }
+
+    #[test]
+    fn mul_vector_by_negative() {
+        let a: Vec3<f32> = (1.0, 2.0, 3.0).into();
+        let result = &a * -1.0;
+        assert_eq!(result.x, -1.0);
+        assert_eq!(result.y, -2.0);
+        assert_eq!(result.z, -3.0);
+    }
+
+    #[test]
+    fn mul_vector_by_fraction() {
+        let a: Vec3<f32> = (2.0, 4.0, 6.0).into();
+        let result = &a * 0.5;
+        assert_eq!(result.x, 1.0);
+        assert_eq!(result.y, 2.0);
+        assert_eq!(result.z, 3.0);
     }
 }
